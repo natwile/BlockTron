@@ -24,6 +24,7 @@
 -For the LL classes, there are typically getters,setters and constructors.
 -There are also allocators allowing for easy and controlled memory allocation.
 -Most of these classes are all public allowing access for the FrontEnd.
+Created with V1.0
 */
 
 /* Constants */
