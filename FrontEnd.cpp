@@ -12,6 +12,7 @@
 -The purpose of the movement() and action functions are to allow for movement within the map with specific rules.
 -The purpose of newLevel() is to add progression into the game with varying map sizes.
 -The purpose of loadGame() and newGame() is to allow for abruptions and continuations within the game, as well as restarting.
+Created with V1.0
 */
 
 /* Exception Classes */
