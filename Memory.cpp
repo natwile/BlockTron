@@ -24,11 +24,11 @@
 -For the LL classes, there are typically getters,setters and constructors.
 -There are also allocators allowing for easy and controlled memory allocation.
 -Most of these classes are all public allowing access for the FrontEnd.
-Created with V1.0
 */
 
 /* Constants */
 const int intCapacity = 2048; //12 bit score and level
+const int charCapacity = 32; //6 bit char
 const std::string fileName = "gamefile.txt"; //filename to input/output from
 
 /* Single Memory Bit (Binary Node)*/
@@ -176,8 +176,7 @@ public:
         if (condition == 3) {return std::rand() % 2;}
     }
 
-    void addInteger(int val) { //adds an integer to memory with a specific capacity
-        int scale = intCapacity;
+    void addInteger(int val, int scale) { //adds an integer to memory with a specific capacity
         while (scale > 1) {
             if (val - scale >= 0) {
                 val -= scale;
@@ -208,8 +207,8 @@ public:
                 data << temp2->getBit();
                 temp2 = temp2->next;
             }
-            data << " ";
             temp1 = temp1->next;
+            if (temp1 != nullptr) {data << " ";}
         }
         data.close();
     }
