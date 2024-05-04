@@ -12,7 +12,6 @@
 -The purpose of the movement() and action functions are to allow for movement within the map with specific rules.
 -The purpose of newLevel() is to add progression into the game with varying map sizes.
 -The purpose of loadGame() and newGame() is to allow for abruptions and continuations within the game, as well as restarting.
-Created with V1.0
 */
 
 /* Exception Classes */
@@ -43,16 +42,20 @@ private:
     int level;
     
     File file;
+    int health;
 public: 
+    std::string name; 
     Memory memory;
     FrontEnd(int s){  //game creation
         x = 0;
         y = 0;
         size = s;
+        health = 5;
         map = generate(size);
         score = 0;
         level = 1;
         file = File();
+        name = "";
     }
 
     void setPosition(int xpos, int ypos) { //sets position coordinates
@@ -79,13 +82,16 @@ public:
                 else if (map[(i*size) + j] == 2) {std::cout << " ? ";}
                 else if (map[(i*size) + j] == 1) {std::cout << "   ";}
                 else if (map[(i*size) + j] == 0) {std::cout << "[ ]";}
-                
+                else if (map[(i*size) + j] == 5) {std::cout << "[=]";}
             }
             std::cout << "|";
-            if (i == 2) {std::cout << "    Level: " << level;}
-            if (i == 3) {std::cout << "    Score: " << score;}
-            if (i == 4) {std::cout << "    1->(w,a,s,d) : Break Block";}
-            if (i == 6) {std::cout << "    3 : Save Game";}
+            if (i == 0) {std::cout << "    Name: " << name;}
+            else if (i == 1) {std::cout << "    Health: " << health;}
+            else if (i == 2) {std::cout << "    Level: " << level;}
+            else if (i == 3) {std::cout << "    Score: " << score;}
+            else if (i == 4) {std::cout << "    1->(w,a,s,d) : Break Block";}
+            else if (i == 5) {std::cout << "    2->(w,a,s,d) : Attack Location";}
+            else if (i == 6) {std::cout << "    3 : Save Game";}
             std::cout << std::endl;
         }
         for (int i = 0; i < (size*3) + 2; i++) {
@@ -103,6 +109,7 @@ public:
         else if (c == 119 && y > 0 && map[((y-1)*size) + x] != 0) {y--;} //w,placement check
 
         else if (c == 49) {breakBlock();} //1, break block check
+        else if (c == 50) {attackLocation();} //2, attack location check
         else if (c == 51) {throw Save();} // 3, save
 
         if (map[((y)*size) + x] == 2) {LuckyBlock(); map[((y)*size) + x] = 1;} // ? check
@@ -116,6 +123,28 @@ public:
         else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 0) {map[(y*size) + x + 1] = 1; score++;} //d, placement check & rock check
         else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 0) {map[((y+1)*size) + x] = 1; score++;} //s, placement check & rock check
         else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 0) {map[((y-1)*size) + x] = 1; score++;} //w, placement check & rock check
+    }
+
+    void attackLocation() { // Attack Location if map = 4
+        auto c = getch();
+        if (c == 97 && x > 0 && map[(y*size) + x - 1] == 4) { //a
+            map[(y*size) + x - 1] = 1; 
+            score += 5;
+            health -= 1;
+        } 
+        else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 4) {//d
+            map[(y*size) + x + 1] = 1; 
+            score += 5;
+            health -= 1;
+        } 
+        else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 4) {//s
+            score += 5;
+            health -= 1;
+        }
+        else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 4) {//w
+            score += 5;
+            health -= 1;
+        }
     }
 
     void blankAction() { //Skeleton action function
@@ -150,20 +179,21 @@ public:
     int* generate(int size) { //generates new map with specific size
         int *map = new int[size * size];
         std::srand(std::time(nullptr));
-        for (int i = 0; i < (size*size); i++) {
-            int val = std::rand() % 4;
-            if (val > 0) {val = 1;}
+        for (int i = 0; i < (size*size); i++) { //creates blocks or spaces
+            int val = std::rand() % 6;
+            if (val == 5) {val = 5;}
+            else if (val > 0) {val = 1;}
             map[i] = val;
         }
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < size - 6; i++) { //randomly places ?
             int pos = std::rand() % (size*size);
             while (map[pos] != 1) {
                 pos = std::rand() % (size*size);
             }
             map[pos] = 2;
         }
-        map[0] = 1;
-        map[(std::rand() % size) * size] = 3;
+        map[0] = 1; //clear start
+        map[((std::rand() % (size/2)) * size) + (2*size)] = 3; //$
         return map;
     }
 
@@ -176,8 +206,19 @@ public:
 
     void loadGame() { //loads game file into memory
         file.destruct(&memory);
-        level = memory.start->next->next->asInteger();
-        score = memory.start->next->next->next->asInteger();
+        MemoryChunk* temp = memory.start->next->next;
+        level = temp->asInteger();
+        temp = temp->next;
+        score = temp->asInteger();
+        while(temp->next != nullptr && temp->asInteger() < 64) {
+            temp = temp->next;
+            char charTemp = temp->asInteger();
+            if (charTemp < 10) {charTemp += 48;}
+            else if (charTemp < 36) {charTemp += 65 - 10;}
+            else if (charTemp < 63) {charTemp += 97 - 36;}
+            else {charTemp = 42;}
+            name.push_back(charTemp);
+        }
         size = (level * 2) + 6;
         map = generate(size);
         memory.start->next->next = nullptr;
@@ -188,11 +229,38 @@ public:
     }
     void constructFile() { //constructs game file from memory
         memory.newChunk();
-        memory.addInteger(level);
-        memory.addInteger(score);
+        memory.addInteger(level, intCapacity);
+        memory.addInteger(score, intCapacity);
+        for (int i = 0; i < name.length(); i++) { 
+            int number;
+            if (int(name[i]) >= 48 && int(name[i]) <= 57) { //0-9 (10)
+                number = int(name[i]) - 48;
+            }
+            else if (int(name[i]) >= 65 && int(name[i]) <= 90) {// A-Z (26)
+                number = int(name[i]) - 65 + 10;
+            }
+            else if (int(name[i]) >= 97 && int(name[i]) <= 122) { //a-z (26)
+                number = int(name[i]) - 97 + 36;
+            }
+            else if (int(name[i]) != 10 & int(name[i]) != 32) { // * invalid (1) ... = 63 chars
+                number = 63;
+            }
+            if (int(name[i]) != 10 & int(name[i]) != 32) {memory.addInteger(number, charCapacity);}
+        }
+        MemoryChunk* temp = memory.start;
+        while (temp->next->next->next != nullptr) {temp = temp->next;}
+        temp->next->next = nullptr;
         file.construct(&memory);
     }
 
     void setScore(int val) {score = val;}
     void setLevel(int val) {level = val;}
+    
+    void modifyHealth(int val, std::string condition = "decrease") { //modifies health
+        if (condition != "decrease") {health += val; return;}
+        else {
+            health -= val;
+            if (health < 0) {throw Loss();}
+        }
+    }
 };
