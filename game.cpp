@@ -2,13 +2,18 @@
 
 int main() {
     FrontEnd f = FrontEnd(8); 
-    char user = 0;
+    char user = 50;
     std::cout << "Welcome to Block-Tron!" << std::endl;
     std::cout << "Press 1 for new game" << std::endl;
     std::cout << "Press 2 for load game" << std::endl;
     std::cin >> user;
     if (user == 50) {f.loadGame();}
-    else {f.newGame();}
+    else {
+        f.newGame();
+        std::cout << "Please Type Your Name: ";
+        std::cin >> f.name;
+    }
+    f.clear();
     while (true) {
         try {
             while(true) {
@@ -18,6 +23,7 @@ int main() {
             }
         }
         catch (Win&) {
+            f.clear();
             f.newLevel(); 
         }
         catch (Loss&) {
