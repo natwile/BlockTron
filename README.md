@@ -15,6 +15,7 @@ There are also the more general or more simple skills such as:
   - Arrays, Loops, Pointers, Constants
   - Classes and Object Oriented Programming
 
-File Structure:  Memory.cpp  ->  FrontEnd.cpp  ->  game.cpp
+File Structure:  Memory.cpp  ->  Functions.cpp  ->  FrontEnd.cpp  ->  game.cpp
+(Linked Lists & File I/O), (Helper Functions to Frontend), (UI, Play Functions, Map), (Main Method)
 
 Date of V1.0 Upload: 4/30/2024
