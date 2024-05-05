@@ -1,5 +1,5 @@
 #include <conio.h>
-#include "Memory.cpp"
+#include "Functions.cpp"
 
 /*  Design and Purpose  */
 /*
@@ -14,22 +14,10 @@
 -The purpose of loadGame() and newGame() is to allow for abruptions and continuations within the game, as well as restarting.
 */
 
-/* Exception Classes */
-#include <stdexcept>
-class Win : public std::exception {
-public:
-  const char *what() { return "Win Condition"; }
-};
-
-class Loss : public std::exception {
-public:
-  const char *what() { return "Loss Condition"; }
-};
-
-class Save : public std::exception {
-public:
-  const char *what() { return "Save Condition"; }
-};
+const int attackScore = 250; //score modifier used when winning attacks
+const int luckyScore = 100; //score modifier for score related lucky blocks
+const int luckyHealth = 3; //health modifier for health related lucky blocks
+const int blockScore = 3; //score modifier for score related block removals
 
 /* FrontEnd class for visuals */
 class FrontEnd {
@@ -46,6 +34,7 @@ private:
 public: 
     std::string name; 
     Memory memory;
+    int enemyLocation;
     FrontEnd(int s){  //game creation
         x = 0;
         y = 0;
@@ -83,6 +72,7 @@ public:
                 else if (map[(i*size) + j] == 1) {std::cout << "   ";}
                 else if (map[(i*size) + j] == 0) {std::cout << "[ ]";}
                 else if (map[(i*size) + j] == 5) {std::cout << "[=]";}
+                else if (map[(i*size) + j] == 4) {std::cout << "{*}";}
             }
             std::cout << "|";
             if (i == 0) {std::cout << "    Name: " << name;}
@@ -103,10 +93,10 @@ public:
     void movement() { //moves and other checks
         auto c = getch();
         //Movement 
-        if (c == 97 && x > 0 && map[(y*size) + x - 1] != 0) {x--;} //a,placement check
-        else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] != 0) {x++;} //d,placement check
-        else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] != 0) {y++;} //s,placement check
-        else if (c == 119 && y > 0 && map[((y-1)*size) + x] != 0) {y--;} //w,placement check
+        if (c == 97 && x > 0 && map[(y*size) + x - 1] != 0 && map[(y*size) + x - 1] != 5 && map[(y*size) + x - 1] != 4) {x--;} //a,placement check
+        else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] != 0 && map[(y*size) + x + 1] != 5 && map[(y*size) + x + 1] != 4) {x++;} //d,placement check
+        else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] != 0 && map[((y+1)*size) + x] != 5 && map[((y+1)*size) + x] != 4) {y++;} //s,placement check
+        else if (c == 119 && y > 0 && map[((y-1)*size) + x] != 0 && map[((y-1)*size) + x] != 5 && map[((y-1)*size) + x] != 4) {y--;} //w,placement check
 
         else if (c == 49) {breakBlock();} //1, break block check
         else if (c == 50) {attackLocation();} //2, attack location check
@@ -114,36 +104,41 @@ public:
 
         if (map[((y)*size) + x] == 2) {LuckyBlock(); map[((y)*size) + x] = 1;} // ? check
         if (map[((y)*size) + x] == 3) {throw Win();} // $ check
+        if (map[((y)*size) + x] == 4) {attackLocation();} // Enemy check
         if (score < 0) {score = 0;} // no negative score
+        enemyAI();
     }
 
     void breakBlock() { //breaks a block
         auto c = getch();
-        if (c == 97 && x > 0 && map[(y*size) + x - 1] == 0) {map[(y*size) + x - 1] = 1; score++;} //a, placement check & rock check
-        else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 0) {map[(y*size) + x + 1] = 1; score++;} //d, placement check & rock check
-        else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 0) {map[((y+1)*size) + x] = 1; score++;} //s, placement check & rock check
-        else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 0) {map[((y-1)*size) + x] = 1; score++;} //w, placement check & rock check
+        if (c == 97 && x > 0 && map[(y*size) + x - 1] == 0) {map[(y*size) + x - 1] = 1; score += blockScore;} //a, placement check & rock check
+        else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 0) {map[(y*size) + x + 1] = 1; score += blockScore;} //d, placement check & rock check
+        else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 0) {map[((y+1)*size) + x] = 1; score += blockScore;} //s, placement check & rock check
+        else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 0) {map[((y-1)*size) + x] = 1; score += blockScore;} //w, placement check & rock check
     }
 
     void attackLocation() { // Attack Location if map = 4
         auto c = getch();
+        Enemy *enemy = new Enemy();
         if (c == 97 && x > 0 && map[(y*size) + x - 1] == 4) { //a
             map[(y*size) + x - 1] = 1; 
-            score += 5;
-            health -= 1;
+            health = enemy->fight(health);
+            score += (std::rand() % attackScore) + attackScore;
         } 
         else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 4) {//d
             map[(y*size) + x + 1] = 1; 
-            score += 5;
-            health -= 1;
+            health = enemy->fight(health);
+            score += (std::rand() % attackScore) + attackScore;
         } 
         else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 4) {//s
-            score += 5;
-            health -= 1;
+            map[((y+1)*size) + x] = 1;
+            health = enemy->fight(health);
+            score += (std::rand() % attackScore) + attackScore;
         }
         else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 4) {//w
-            score += 5;
-            health -= 1;
+            map[((y-1)*size) + x] = 1;
+            health = enemy->fight(health);
+            score += (std::rand() % attackScore) + attackScore;
         }
     }
 
@@ -156,32 +151,22 @@ public:
     }
 
     void LuckyBlock() { //Tests luck till succession
-        if(memory.testLuck()) {score += 5;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score += 15;}
-        if(memory.testLuck()) {score -= 15;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score -= 20;}
-        if(memory.testLuck()) {score += 5;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score += 15;}
-        if(memory.testLuck()) {score -= 6;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score -= 20;}
-        if(memory.testLuck()) {score -= 15;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score += 15;}
-        if(memory.testLuck()) {score += 6;}
-        if(memory.testLuck()) {score += 10;}
-        if(memory.testLuck()) {score -= 6;}
+        clear();
+        std::string luck = LuckyBlockFunction(memory.testLuck());
+        if (luck == "HP") {modifyHealth((std::rand() % luckyHealth)+1, "increase");}
+        if (luck == "SCORE") {score += std::rand() % luckyScore;}
+        if (luck == "BONUS") {score += std::rand() % luckyScore; modifyHealth((std::rand() % luckyHealth)+1, "increase");}
+        if (luck == "-SCORE") {score -= std::rand() % (luckyScore/2);}
+        if (luck == "-HP") {modifyHealth((std::rand() % (luckyHealth-1))+1, "decrease");}
+        if (score < 0) {score = 0;} // no negative score
     }
 
     int* generate(int size) { //generates new map with specific size
         int *map = new int[size * size];
         std::srand(std::time(nullptr));
-        for (int i = 0; i < (size*size); i++) { //creates blocks or spaces
-            int val = std::rand() % 6;
-            if (val == 5) {val = 5;}
+        for (int i = 0; i < (size*size); i++) { //creates blocks, spaces, enemies
+            int val = std::rand() % 13;
+            if (val == 10 || val == 11) {val = 5;}
             else if (val > 0) {val = 1;}
             map[i] = val;
         }
@@ -192,6 +177,13 @@ public:
             }
             map[pos] = 2;
         }
+         //randomly places ?
+        int pos = std::rand() % (size*size);
+        while (map[pos] != 1 && map[pos] != 2) {
+            pos = std::rand() % (size*size);
+        }
+        map[pos] = 4;
+        enemyLocation = pos;
         map[0] = 1; //clear start
         map[((std::rand() % (size/2)) * size) + (2*size)] = 3; //$
         return map;
@@ -261,6 +253,52 @@ public:
         else {
             health -= val;
             if (health < 0) {throw Loss();}
+        }
+    }
+
+    void enemyAI() {
+        std::string checkLocation[4] = {"left", "right", "up", "down"};
+        int startCheck = std::rand() % 4;
+        for (int i = 0; i < 4; i++) {
+            //side checks
+            if (checkLocation[startCheck] == "left" && enemyLocation == 0) {continue;}
+            //player checks
+            if (enemyLocation - 1 == (y*size) + x  
+                || enemyLocation + 1 == (y*size) + x 
+                || enemyLocation - size == (y*size) + x 
+                || enemyLocation + size == (y*size) + x ) {
+                    Enemy *enemy = new Enemy();
+                    health = enemy->fight(health);
+                    map[enemyLocation] = 1; 
+                    score += (std::rand() % attackScore) + attackScore;
+                    return;
+                }
+            //movement checks
+            if (checkLocation[startCheck] == "left" && map[enemyLocation - 1] == 1) {
+                map[enemyLocation] = 1;
+                enemyLocation = enemyLocation - 1;
+                map[enemyLocation] = 4;
+                return;
+            }
+            if (checkLocation[startCheck] == "right" && map[enemyLocation + 1] == 1){
+                map[enemyLocation] = 1;
+                enemyLocation = enemyLocation + 1;
+                map[enemyLocation] = 4;
+                return;
+            }
+            if (checkLocation[startCheck] == "up" && map[enemyLocation - size] == 1) {
+                map[enemyLocation] = 1;
+                enemyLocation = enemyLocation - size;
+                map[enemyLocation] = 4;
+                return;
+            }
+            if (checkLocation[startCheck] == "down" && map[enemyLocation + size] == 1){
+                map[enemyLocation] = 1;
+                enemyLocation = enemyLocation + size;
+                map[enemyLocation] = 4;
+                return;
+            }
+            startCheck = (startCheck + 1) % 4;
         }
     }
 };
