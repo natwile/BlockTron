@@ -16,9 +16,9 @@ There are also the more general or more simple skills such as:
   - Classes and Object Oriented Programming
 
 File Structure:  Memory.cpp  ->  Functions.cpp  ->  FrontEnd.cpp  ->  game.cpp
-Memory.cpp: Linked Lists & File I/O
-Functions.cpp: Helper Functions to Frontend
-FrontEnd.cpp: UI, Play Functions, Map
-game.cpp: Main Method (Try/Catch Loop)
+  - Memory.cpp: Linked Lists & File I/O
+  - Functions.cpp: Helper Functions to Frontend
+  - FrontEnd.cpp: UI, Play Functions, Map
+  - game.cpp: Main Method (Try/Catch Loop)
 
 Date of V1.0 Upload: 4/30/2024
