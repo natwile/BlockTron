@@ -3,6 +3,14 @@
 #include <thread>
 #include <time.h>
 using namespace std::chrono_literals;
+/* Design and Purpose */
+/*
+- The purpose of some of these functions are to generalize certain actions to not repeat implementations.
+    -> This applies to generalPrint() for cutscenes.
+- Another purpose of these functions is to take some weight off the front end in terms of implementation.
+    -> This applies to The LuckyBlockFunction() and the enemy class with the fight member.
+- Exceptions used within the frontend can also be located here.
+*/
 
 const int maxHealth = 3; //controls enemys random max health
 
@@ -115,3 +123,4 @@ public:
         return playerHealth;
     }
 };
+
