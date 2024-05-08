@@ -18,23 +18,27 @@ const int attackScore = 250; //score modifier used when winning attacks
 const int luckyScore = 100; //score modifier for score related lucky blocks
 const int luckyHealth = 3; //health modifier for health related lucky blocks
 const int blockScore = 3; //score modifier for score related block removals
+bool adminActive = true; //This is used for testing purposes and can be disabled with the below constant.
+std::string checkLocation[4] = {"left", "up", "right", "down"}; //Used for enemyAI()
+
 
 /* FrontEnd class for visuals */
 class FrontEnd {
 private:
-    int x;
-    int y;
-    int size;
-    int *map;
-    int score;
-    int level;
+    int x; //player x pos
+    int y; //player y pos
+    int size; //size of the map
+    int *map; //generate map as 1D array
+    int score; //score of player
+    int level; //current level
     
-    File file;
-    int health;
+    File file; //file object used for i/o
+    int health; //health of player
 public: 
-    std::string name; 
-    Memory memory;
-    int enemyLocation;
+    std::string name; //name of player
+    Memory memory; //memory object used for i/o
+    int enemyLocation; //location of enemy on map
+    bool isEnemyAlive = false; // enemy condition
     FrontEnd(int s){  //game creation
         x = 0;
         y = 0;
@@ -72,7 +76,7 @@ public:
                 else if (map[(i*size) + j] == 1) {std::cout << "   ";}
                 else if (map[(i*size) + j] == 0) {std::cout << "[ ]";}
                 else if (map[(i*size) + j] == 5) {std::cout << "[=]";}
-                else if (map[(i*size) + j] == 4) {std::cout << "{*}";}
+                else if (map[(i*size) + j] == 4 && isEnemyAlive) {std::cout << "{*}";}
             }
             std::cout << "|";
             if (i == 0) {std::cout << "    Name: " << name;}
@@ -92,7 +96,11 @@ public:
 
     void movement() { //moves and other checks
         auto c = getch();
-        //Movement 
+        if (c == '$') {
+            adminMode();
+            return;
+        }
+        //Movement
         if (c == 97 && x > 0 && map[(y*size) + x - 1] != 0 && map[(y*size) + x - 1] != 5 && map[(y*size) + x - 1] != 4) {x--;} //a,placement check
         else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] != 0 && map[(y*size) + x + 1] != 5 && map[(y*size) + x + 1] != 4) {x++;} //d,placement check
         else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] != 0 && map[((y+1)*size) + x] != 5 && map[((y+1)*size) + x] != 4) {y++;} //s,placement check
@@ -106,7 +114,7 @@ public:
         if (map[((y)*size) + x] == 3) {throw Win();} // $ check
         if (map[((y)*size) + x] == 4) {attackLocation();} // Enemy check
         if (score < 0) {score = 0;} // no negative score
-        enemyAI();
+        if (isEnemyAlive) {enemyAI();} //movement of the enemy
     }
 
     void breakBlock() { //breaks a block
@@ -119,26 +127,31 @@ public:
 
     void attackLocation() { // Attack Location if map = 4
         auto c = getch();
+        if (!isEnemyAlive) {return;}
         Enemy *enemy = new Enemy();
         if (c == 97 && x > 0 && map[(y*size) + x - 1] == 4) { //a
             map[(y*size) + x - 1] = 1; 
             health = enemy->fight(health);
             score += (std::rand() % attackScore) + attackScore;
+            isEnemyAlive = false;
         } 
         else if (c == 100 && x < size - 1 && map[(y*size) + x + 1] == 4) {//d
             map[(y*size) + x + 1] = 1; 
             health = enemy->fight(health);
             score += (std::rand() % attackScore) + attackScore;
+            isEnemyAlive = false;
         } 
         else if (c == 115 && y < size - 1 && map[((y+1)*size) + x] == 4) {//s
             map[((y+1)*size) + x] = 1;
             health = enemy->fight(health);
             score += (std::rand() % attackScore) + attackScore;
+            isEnemyAlive = false;
         }
         else if (c == 119 && y > 0 && map[((y-1)*size) + x] == 4) {//w
             map[((y-1)*size) + x] = 1;
             health = enemy->fight(health);
             score += (std::rand() % attackScore) + attackScore;
+            isEnemyAlive = false;
         }
     }
 
@@ -150,7 +163,7 @@ public:
         else if (c == 119 && y > 0) {} //w, placement check
     }
 
-    void LuckyBlock() { //Tests luck till succession
+    void LuckyBlock() { //runs lucky block animation and affects player stats here
         clear();
         std::string luck = LuckyBlockFunction(memory.testLuck());
         if (luck == "HP") {modifyHealth((std::rand() % luckyHealth)+1, "increase");}
@@ -177,12 +190,13 @@ public:
             }
             map[pos] = 2;
         }
-         //randomly places ?
+         //randomly places {*} enemy
         int pos = std::rand() % (size*size);
         while (map[pos] != 1 && map[pos] != 2) {
             pos = std::rand() % (size*size);
         }
         map[pos] = 4;
+        isEnemyAlive = true;
         enemyLocation = pos;
         map[0] = 1; //clear start
         map[((std::rand() % (size/2)) * size) + (2*size)] = 3; //$
@@ -198,6 +212,11 @@ public:
 
     void loadGame() { //loads game file into memory
         file.destruct(&memory);
+        if (!memory.readEndBit()) { // end bit 0 (no cont) == true
+            std::cout << std::endl << "Invalid Game File. Starting new Game." << std::endl;
+            newGame();
+            return;
+        }
         MemoryChunk* temp = memory.start->next->next;
         level = temp->asInteger();
         temp = temp->next;
@@ -221,8 +240,8 @@ public:
     }
     void constructFile() { //constructs game file from memory
         memory.newChunk();
-        memory.addInteger(level, intCapacity);
-        memory.addInteger(score, intCapacity);
+        memory.addInteger(level, intCapacity); //level
+        memory.addInteger(score, intCapacity); //newscore
         for (int i = 0; i < name.length(); i++) { 
             int number;
             if (int(name[i]) >= 48 && int(name[i]) <= 57) { //0-9 (10)
@@ -245,7 +264,7 @@ public:
         file.construct(&memory);
     }
 
-    void setScore(int val) {score = val;}
+    void setScore(int val) {score = val;} //setters for testing
     void setLevel(int val) {level = val;}
     
     void modifyHealth(int val, std::string condition = "decrease") { //modifies health
@@ -256,12 +275,11 @@ public:
         }
     }
 
-    void enemyAI() {
-        std::string checkLocation[4] = {"left", "right", "up", "down"};
-        int startCheck = std::rand() % 4;
+    void enemyAI() { //random movement of enemy if possible
+        int check = std::rand() % 4;
         for (int i = 0; i < 4; i++) {
             //side checks
-            if (checkLocation[startCheck] == "left" && enemyLocation == 0) {continue;}
+            if (checkLocation[check] == "left" && enemyLocation == 0) {continue;}
             //player checks
             if (enemyLocation - 1 == (y*size) + x  
                 || enemyLocation + 1 == (y*size) + x 
@@ -271,34 +289,90 @@ public:
                     health = enemy->fight(health);
                     map[enemyLocation] = 1; 
                     score += (std::rand() % attackScore) + attackScore;
+                    isEnemyAlive = false;
                     return;
                 }
             //movement checks
-            if (checkLocation[startCheck] == "left" && map[enemyLocation - 1] == 1) {
+            if (checkLocation[check] == "left" && map[enemyLocation - 1] == 1 && enemyLocation % size != 0) {
                 map[enemyLocation] = 1;
                 enemyLocation = enemyLocation - 1;
                 map[enemyLocation] = 4;
                 return;
             }
-            if (checkLocation[startCheck] == "right" && map[enemyLocation + 1] == 1){
+            if (checkLocation[check] == "right" && map[enemyLocation + 1] == 1 && enemyLocation % size != size - 1){
                 map[enemyLocation] = 1;
                 enemyLocation = enemyLocation + 1;
                 map[enemyLocation] = 4;
                 return;
             }
-            if (checkLocation[startCheck] == "up" && map[enemyLocation - size] == 1) {
+            if (checkLocation[check] == "up" && map[enemyLocation - size] == 1) {
                 map[enemyLocation] = 1;
                 enemyLocation = enemyLocation - size;
                 map[enemyLocation] = 4;
                 return;
             }
-            if (checkLocation[startCheck] == "down" && map[enemyLocation + size] == 1){
+            if (checkLocation[check] == "down" && map[enemyLocation + size] == 1){
                 map[enemyLocation] = 1;
                 enemyLocation = enemyLocation + size;
                 map[enemyLocation] = 4;
                 return;
             }
-            startCheck = (startCheck + 1) % 4;
+            check = (check + 1) % 4;
+        }
+    }
+
+    /*
+    This is an admin related function that when active will allow for increased customizations to the game.
+    */
+
+    void adminMode() {
+        //if (adminActive) {return;}
+        char adminConsole = ' ';
+        int val;
+        std::cout << "(type h for help)" << std::endl;
+        while (adminConsole != 'x') {
+            std::cout << std::endl << "$";
+            adminConsole = getch();
+            std::cout << adminConsole;
+            if (adminConsole == 'h') {
+                std::cout << std::endl << "Admin Help" << std::endl;
+                std::cout << "h: help menu" << std::endl;
+                std::cout << "!: sudo options" << std::endl;
+                std::cout << "      ->a(direction: l,r,u,d): enemyAI movement" << std::endl;
+                std::cout << "      ->k: kill enemy" << std::endl;
+                std::cout << "      ->l: lucky block" << std::endl;
+                std::cout << "      ->n: new level" << std::endl;
+                std::cout << "m: modify stats" << std::endl;
+                std::cout << "      ->h(val): add health" << std::endl;
+                std::cout << "      ->l(val): set level" << std::endl;
+                std::cout << "      ->s(val): set score" << std::endl;
+                std::cout << "n: new game" << std::endl;
+            }
+            if (adminConsole == '!') {
+                adminConsole = getch();
+                std::cout << adminConsole;
+                if (adminConsole == 'a') {
+                    adminConsole = getch();
+                    std::cout << adminConsole;
+                    if (adminConsole == 'l') {for(int i = 0; i < 4; i++) {checkLocation[i] = "left";}}
+                    if (adminConsole == 'r') {for(int i = 0; i < 4; i++) {checkLocation[i] = "right";}}
+                    if (adminConsole == 'u') {for(int i = 0; i < 4; i++) {checkLocation[i] = "up";}}
+                    if (adminConsole == 'd') {for(int i = 0; i < 4; i++) {checkLocation[i] = "down";}}
+                }
+                if (adminConsole == 'k') {isEnemyAlive = false;}
+                if (adminConsole == 'l') {LuckyBlock();}
+                if (adminConsole == 'n') {newLevel();}
+            }
+            if (adminConsole == 'm') {
+                adminConsole = getch();
+                std::cout << adminConsole;
+                std::cin >> val;
+                std::cout << val;
+                if (adminConsole == 'h') {modifyHealth(val, "increase");}
+                if (adminConsole == 'l') {setLevel(val - 1); newLevel();}
+                if (adminConsole == 's') {setScore(val);}
+            }
+            if (adminConsole == 'n') {newGame(); adminConsole = 'x';}
         }
     }
 };
