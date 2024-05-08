@@ -190,6 +190,10 @@ public:
         addBit(val == 1);
         newChunk();
     }
+
+    bool readEndBit() {
+        return start->head->getBit();
+    }
 };
 
 class File {
